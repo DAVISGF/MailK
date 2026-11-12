@@ -70,6 +70,24 @@ IMAP/POP3: usuario = dirección completa. En modo local cualquier clave sirve; c
 3. Opcional: monta certificado y clave y define `MAILK_TLS_CERT`/`MAILK_TLS_KEY`.
 4. Publica 8025 detrás de HTTPS. SMTP/IMAP/POP3 requieren exponer TCP (no todos los PaaS lo permiten; un VPS o Railway con TCP proxy sirve).
 
+### Fly.io (despliegue actual)
+
+La configuración está en `fly.toml` (app `mailk`, región `gru`, volumen `mailk_data` en `/data`).
+
+- API + UI: `https://mailk.fly.dev`
+- SMTP `:1025`, IMAP `:1143`, POP3 `:1110` por la IPv6 dedicada de la app (`fly ips list`). Para clientes solo IPv4 hace falta una IPv4 dedicada: `fly ips allocate-v4` (de pago).
+
+Primer despliegue en una cuenta nueva:
+
+```bash
+fly apps create mailk
+fly volumes create mailk_data -r gru -s 1
+fly secrets set MAILK_API_TOKEN=... MAILK_SMTP_USER=... MAILK_SMTP_PASS=...
+fly deploy
+```
+
+Actualizaciones posteriores: `fly deploy` desde la raíz del repo.
+
 ## Límites conocidos
 
 - IMAP: una sola carpeta (`INBOX`) por cuenta; sin `APPEND`, `COPY`, `IDLE` ni `STARTTLS` (usa el puerto TLS implícito). `BODYSTRUCTURE` es simplificado (una sola parte).
