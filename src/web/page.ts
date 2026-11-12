@@ -16,6 +16,7 @@ export const PAGE = `<!doctype html>
   aside h2 { font-size:12px; text-transform:uppercase; color:var(--mut); margin:12px 0 6px; }
   aside button { display:block; width:100%; text-align:left; margin:2px 0; padding:6px 8px; border:0; border-radius:6px; background:none; color:var(--fg); cursor:pointer; }
   aside button.on { background:var(--acc); color:#fff; }
+  aside button.on .mut { color:inherit; opacity:.8; }
   section { padding:12px; overflow:auto; }
   input, button.btn { padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
   button.btn { cursor:pointer; }
@@ -26,6 +27,15 @@ export const PAGE = `<!doctype html>
   .msg { background:var(--card); border:1px solid var(--line); padding:12px; border-radius:8px; margin-top:12px; }
   iframe { width:100%; height:360px; border:1px solid var(--line); background:#fff; }
   pre { white-space:pre-wrap; }
+  form.card { display:none; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  form.card.open { display:block; }
+  form.card h3 { margin:0 0 10px; font-size:14px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; }
+  .grid label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--mut); }
+  .grid input { width:100%; }
+  .actions { display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .ok { color:#1f9d55; } .err { color:#d64545; }
   @media (max-width:700px) { main { grid-template-columns:1fr; } aside { border-right:0; border-bottom:1px solid var(--line); } }
 </style>
 </head>
@@ -36,14 +46,44 @@ export const PAGE = `<!doctype html>
   <input id="token" placeholder="Token API" type="password" size="16">
   <button class="btn" id="refresh">Actualizar</button>
   <button class="btn" id="clear">Borrar vista</button>
+  <button class="btn" id="toggle-group">+ Nuevo proyecto</button>
+  <button class="btn" id="toggle-new">+ Nueva cuenta</button>
   <span class="mut" id="info"></span>
 </header>
 <main>
   <aside>
-    <h2>Grupos</h2><div id="groups"></div>
+    <h2>Proyectos</h2><div id="groups"></div>
     <h2>Cuentas</h2><div id="accounts"></div>
   </aside>
   <section>
+    <form id="new-group" class="card" autocomplete="off">
+      <h3>Nuevo proyecto</h3>
+      <div class="grid">
+        <label>Nombre *<input name="project" required maxlength="64" placeholder="miproyecto"></label>
+      </div>
+      <div class="mut" style="font-size:12px;margin-top:6px">Letras, números, punto, guion y guion bajo. Sin espacios.</div>
+      <div class="actions">
+        <button class="btn primary" type="submit">Crear proyecto</button>
+        <button class="btn" type="button" id="cancel-group">Cancelar</button>
+        <span id="group-result"></span>
+      </div>
+    </form>
+    <form id="new-account" class="card" autocomplete="off">
+      <h3>Nueva cuenta de prueba</h3>
+      <div class="grid">
+        <label>Dirección *<input name="address" required placeholder="usuario@miproyecto.test"></label>
+        <label>Proyecto<input name="group" list="group-list" placeholder="default"></label>
+        <label>Clave IMAP/POP3<input name="password" type="password" placeholder="Por defecto: la dirección"></label>
+        <label>Etiquetas<input name="tags" placeholder="registro, qa"></label>
+        <label>Reenviar a (relay)<input name="relayTo" placeholder="Opcional: real@dominio.com"></label>
+      </div>
+      <datalist id="group-list"></datalist>
+      <div class="actions">
+        <button class="btn primary" type="submit">Crear cuenta</button>
+        <button class="btn" type="button" id="cancel-new">Cancelar</button>
+        <span id="new-result"></span>
+      </div>
+    </form>
     <table><thead><tr><th>Fecha</th><th>Para</th><th>De</th><th>Asunto</th><th>Tags</th></tr></thead><tbody id="rows"></tbody></table>
     <div id="detail"></div>
   </section>
@@ -64,6 +104,7 @@ async function load() {
   const [groups, accounts] = await Promise.all([api('/api/groups'), api('/api/accounts' + (group ? '?group=' + encodeURIComponent(group) : ''))]);
   $('#groups').innerHTML = '<button data-g="" class="' + (group ? '' : 'on') + '">Todos</button>' +
     groups.map((g) => '<button data-g="' + esc(g.name) + '" class="' + (g.name === group ? 'on' : '') + '">' + esc(g.name) + ' <span class="mut">(' + g.messages + ')</span></button>').join('');
+  $('#group-list').innerHTML = groups.map((g) => '<option value="' + esc(g.name) + '">').join('');
   $('#accounts').innerHTML = '<button data-a="" class="' + (account ? '' : 'on') + '">Todas</button>' +
     accounts.map((a) => '<button data-a="' + esc(a.address) + '" class="' + (a.address === account ? 'on' : '') + '">' + esc(a.address) + '</button>').join('');
   const p = new URLSearchParams();
@@ -91,6 +132,61 @@ $('#clear').onclick = async () => {
   if (!url) { alert('Selecciona un grupo o una cuenta'); return; }
   await fetch(url, { method: 'DELETE', headers: t ? { Authorization: 'Bearer ' + t } : {} });
   load();
+};
+const gform = $('#new-group');
+const gresult = (text, cls) => { $('#group-result').textContent = text; $('#group-result').className = cls || ''; };
+$('#toggle-group').onclick = () => { gform.classList.toggle('open'); if (gform.classList.contains('open')) gform.project.focus(); };
+$('#cancel-group').onclick = () => { gform.reset(); gresult(''); gform.classList.remove('open'); };
+gform.onsubmit = async (e) => {
+  e.preventDefault();
+  const name = gform.project.value.trim();
+  if (!/^[\\w.\\-]{1,64}$/.test(name)) { gresult('Nombre inválido: usa letras, números, punto, guion o guion bajo, sin espacios.', 'err'); return; }
+  const t = $('#token').value;
+  gresult('Creando…');
+  try {
+    const r = await fetch('/api/groups', { method: 'POST', headers: { 'content-type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: JSON.stringify({ name }) });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 201) {
+      gresult('Proyecto creado: ' + data.name, 'ok');
+      gform.reset();
+      group = data.name; account = '';
+      await load();
+    } else if (r.status === 401) gresult('Token inválido: pega el token de la API arriba.', 'err');
+    else if (r.status === 409) gresult('Ese proyecto ya existe.', 'err');
+    else if (r.status === 400) gresult('Nombre inválido: usa letras, números, punto, guion o guion bajo, sin espacios.', 'err');
+    else gresult('Error ' + r.status + ': ' + (data.error || 'no se pudo crear'), 'err');
+  } catch { gresult('No se pudo conectar con MailK.', 'err'); }
+};
+const form = $('#new-account');
+const result = (text, cls) => { $('#new-result').textContent = text; $('#new-result').className = cls || ''; };
+$('#toggle-new').onclick = () => {
+  form.classList.toggle('open');
+  if (form.classList.contains('open')) { if (group && !form.group.value) form.group.value = group; form.address.focus(); }
+};
+$('#cancel-new').onclick = () => { form.reset(); result(''); form.classList.remove('open'); };
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { address: form.address.value.trim() };
+  if (form.group.value.trim()) body.group = form.group.value.trim();
+  if (form.password.value) body.password = form.password.value;
+  const tags = form.tags.value.split(',').map((s) => s.trim()).filter(Boolean);
+  if (tags.length) body.tags = tags;
+  if (form.relayTo.value.trim()) body.relayTo = form.relayTo.value.trim();
+  const t = $('#token').value;
+  result('Creando…');
+  try {
+    const r = await fetch('/api/accounts', { method: 'POST', headers: { 'content-type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: JSON.stringify(body) });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 201) {
+      result('Cuenta creada: ' + data.address + ' (proyecto ' + data.group + ')', 'ok');
+      form.reset();
+      group = data.group; account = data.address;
+      await load();
+    } else if (r.status === 401) result('Token inválido: pega el token de la API arriba.', 'err');
+    else if (r.status === 409) result('Esa cuenta ya existe.', 'err');
+    else if (r.status === 400) result('Datos inválidos: revisa la dirección (usuario@dominio), el proyecto (letras, números, . _ -) y el correo de reenvío.', 'err');
+    else result('Error ' + r.status + ': ' + (data.error || 'no se pudo crear'), 'err');
+  } catch { result('No se pudo conectar con MailK.', 'err'); }
 };
 load().catch(() => {});
 </script>
