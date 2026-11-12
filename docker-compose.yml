@@ -1,0 +1,20 @@
+services:
+  mailk:
+    build: .
+    ports:
+      - "1025:1025"   # SMTP
+      - "1143:1143"   # IMAP
+      - "1110:1110"   # POP3
+      - "8025:8025"   # API + UI web
+    volumes:
+      - mailk-data:/data
+    environment:
+      # Local: sin autenticación. Para nube, descomenta:
+      # MAILK_AUTH: "on"
+      # MAILK_API_TOKEN: "cambia-este-token"
+      # MAILK_SMTP_USER: "smtp"
+      # MAILK_SMTP_PASS: "cambia-esta-clave"
+      MAILK_AUTO_CREATE: "on"
+      MAILK_DEFAULT_GROUP: "default"
+volumes:
+  mailk-data:
