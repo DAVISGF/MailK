@@ -1,5 +1,9 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+# Herramientas para compilar better-sqlite3 si no hay binario precompilado disponible
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+ENV npm_config_nodedir=/usr/local
 COPY package*.json tsconfig.json ./
 RUN npm ci
 COPY src ./src
