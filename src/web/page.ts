@@ -46,20 +46,33 @@ export const PAGE = `<!doctype html>
   <input id="token" placeholder="Token API" type="password" size="16">
   <button class="btn" id="refresh">Actualizar</button>
   <button class="btn" id="clear">Borrar vista</button>
+  <button class="btn" id="toggle-group">+ Nuevo proyecto</button>
   <button class="btn" id="toggle-new">+ Nueva cuenta</button>
   <span class="mut" id="info"></span>
 </header>
 <main>
   <aside>
-    <h2>Grupos</h2><div id="groups"></div>
+    <h2>Proyectos</h2><div id="groups"></div>
     <h2>Cuentas</h2><div id="accounts"></div>
   </aside>
   <section>
+    <form id="new-group" class="card" autocomplete="off">
+      <h3>Nuevo proyecto</h3>
+      <div class="grid">
+        <label>Nombre *<input name="project" required maxlength="64" placeholder="miproyecto"></label>
+      </div>
+      <div class="mut" style="font-size:12px;margin-top:6px">Letras, números, punto, guion y guion bajo. Sin espacios.</div>
+      <div class="actions">
+        <button class="btn primary" type="submit">Crear proyecto</button>
+        <button class="btn" type="button" id="cancel-group">Cancelar</button>
+        <span id="group-result"></span>
+      </div>
+    </form>
     <form id="new-account" class="card" autocomplete="off">
       <h3>Nueva cuenta de prueba</h3>
       <div class="grid">
         <label>Dirección *<input name="address" required placeholder="usuario@miproyecto.test"></label>
-        <label>Grupo (proyecto)<input name="group" list="group-list" placeholder="default"></label>
+        <label>Proyecto<input name="group" list="group-list" placeholder="default"></label>
         <label>Clave IMAP/POP3<input name="password" type="password" placeholder="Por defecto: la dirección"></label>
         <label>Etiquetas<input name="tags" placeholder="registro, qa"></label>
         <label>Reenviar a (relay)<input name="relayTo" placeholder="Opcional: real@dominio.com"></label>
@@ -120,6 +133,30 @@ $('#clear').onclick = async () => {
   await fetch(url, { method: 'DELETE', headers: t ? { Authorization: 'Bearer ' + t } : {} });
   load();
 };
+const gform = $('#new-group');
+const gresult = (text, cls) => { $('#group-result').textContent = text; $('#group-result').className = cls || ''; };
+$('#toggle-group').onclick = () => { gform.classList.toggle('open'); if (gform.classList.contains('open')) gform.project.focus(); };
+$('#cancel-group').onclick = () => { gform.reset(); gresult(''); gform.classList.remove('open'); };
+gform.onsubmit = async (e) => {
+  e.preventDefault();
+  const name = gform.project.value.trim();
+  if (!/^[\\w.\\-]{1,64}$/.test(name)) { gresult('Nombre inválido: usa letras, números, punto, guion o guion bajo, sin espacios.', 'err'); return; }
+  const t = $('#token').value;
+  gresult('Creando…');
+  try {
+    const r = await fetch('/api/groups', { method: 'POST', headers: { 'content-type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: JSON.stringify({ name }) });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 201) {
+      gresult('Proyecto creado: ' + data.name, 'ok');
+      gform.reset();
+      group = data.name; account = '';
+      await load();
+    } else if (r.status === 401) gresult('Token inválido: pega el token de la API arriba.', 'err');
+    else if (r.status === 409) gresult('Ese proyecto ya existe.', 'err');
+    else if (r.status === 400) gresult('Nombre inválido: usa letras, números, punto, guion o guion bajo, sin espacios.', 'err');
+    else gresult('Error ' + r.status + ': ' + (data.error || 'no se pudo crear'), 'err');
+  } catch { gresult('No se pudo conectar con MailK.', 'err'); }
+};
 const form = $('#new-account');
 const result = (text, cls) => { $('#new-result').textContent = text; $('#new-result').className = cls || ''; };
 $('#toggle-new').onclick = () => {
@@ -141,13 +178,13 @@ form.onsubmit = async (e) => {
     const r = await fetch('/api/accounts', { method: 'POST', headers: { 'content-type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: JSON.stringify(body) });
     const data = await r.json().catch(() => ({}));
     if (r.status === 201) {
-      result('Cuenta creada: ' + data.address + ' (grupo ' + data.group + ')', 'ok');
+      result('Cuenta creada: ' + data.address + ' (proyecto ' + data.group + ')', 'ok');
       form.reset();
       group = data.group; account = data.address;
       await load();
     } else if (r.status === 401) result('Token inválido: pega el token de la API arriba.', 'err');
     else if (r.status === 409) result('Esa cuenta ya existe.', 'err');
-    else if (r.status === 400) result('Datos inválidos: revisa la dirección (usuario@dominio), el grupo (letras, números, . _ -) y el correo de reenvío.', 'err');
+    else if (r.status === 400) result('Datos inválidos: revisa la dirección (usuario@dominio), el proyecto (letras, números, . _ -) y el correo de reenvío.', 'err');
     else result('Error ' + r.status + ': ' + (data.error || 'no se pudo crear'), 'err');
   } catch { result('No se pudo conectar con MailK.', 'err'); }
 };

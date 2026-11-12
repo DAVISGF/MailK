@@ -28,10 +28,12 @@ describe('flujo completo', () => {
     expect(detail.text).toContain('cuerpo de Bienvenida');
   });
 
-  it('la UI incluye el formulario de creación de cuentas', async () => {
+  it('la UI incluye los formularios de creación de proyectos y cuentas', async () => {
     const html = await (await fetch(`${ctx.http}/`)).text();
     expect(html).toContain('id="new-account"');
     expect(html).toContain('name="address"');
+    expect(html).toContain('id="new-group"');
+    expect(html).toContain('name="project"');
   });
 
   it('crea cuentas por API y limpia por grupo', async () => {
