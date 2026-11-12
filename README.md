@@ -75,7 +75,8 @@ IMAP/POP3: usuario = dirección completa. En modo local cualquier clave sirve; c
 La configuración está en `fly.toml` (app `mailk`, región `gru`, volumen `mailk_data` en `/data`).
 
 - API + UI: `https://mailk.fly.dev`
-- SMTP `:1025`, IMAP `:1143`, POP3 `:1110` por la IPv6 dedicada de la app (`fly ips list`). Para clientes solo IPv4 hace falta una IPv4 dedicada: `fly ips allocate-v4` (de pago).
+- SMTP `149.248.217.64:1025`, IMAP `149.248.217.64:1143`, POP3 `149.248.217.64:1110` (IPv4 dedicada, ~$2/mes).
+- También por la IPv6 dedicada `2a09:8280:1::1fe:286c:0` en los mismos puertos (`fly ips list -a mailk`).
 
 Primer despliegue en una cuenta nueva:
 
