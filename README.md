@@ -2,6 +2,8 @@
 
 Servidor de correos de prueba independiente (Node.js/TypeScript). Captura correos por **SMTP**, los guarda en **SQLite** agrupados por proyecto y los expone por **IMAP**, **POP3**, **API HTTP** y una **UI web** simple. Nunca entrega correo a internet salvo que configures un relay.
 
+> **¿Necesitas correo real** (enviar y recibir desde internet, varios dominios)? MailK no es para eso. Usa la carpeta [`stalwart/`](stalwart/RUNBOOK.md): Stalwart Mail Server en un VPS, con scripts de instalación, administración por terminal y guía de DNS.
+
 ## Uso rápido
 
 ```bash
