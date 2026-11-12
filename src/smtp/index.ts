@@ -68,7 +68,12 @@ export function createSmtpServer(config: Config, store: Store, secure: boolean):
               tags: [...acc.tags, ...msgTags]
             });
             if (acc.relayTo && relay) {
-              await relay.sendMail({ envelope: { from, to: acc.relayTo }, raw });
+              // El correo ya quedó capturado: un fallo del relay no debe hacer fallar (ni duplicar) el envío.
+              try {
+                await relay.sendMail({ envelope: { from, to: acc.relayTo }, raw });
+              } catch (e) {
+                console.error(`MailK: relay a ${acc.relayTo} falló: ${(e as Error).message}`);
+              }
             }
           }
           cb();
