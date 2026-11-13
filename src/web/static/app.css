@@ -172,6 +172,10 @@ select.input { padding-right: 32px; }
 .inbox { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px; min-height: 420px; }
 .inbox-tools { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .inbox-tools .input { max-width: 320px; }
+.refresh-inbox { min-height: 44px; }
+.refresh-inbox[aria-busy="true"] svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .refresh-inbox[aria-busy="true"] svg { animation: none; } }
 .mlist { overflow: auto; max-height: calc(100vh - 290px); }
 .mitem { display: grid; gap: 2px; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
 .mitem:hover { background: var(--surface-2); }

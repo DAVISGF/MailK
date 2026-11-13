@@ -278,6 +278,7 @@
         <select class="input" id="account-filter" data-change="filter-account"><option value="">Todas las cuentas</option>${opts}</select>
         <label class="sr-only" for="search">Buscar</label>
         <input class="input" id="search" type="search" placeholder="Buscar asunto, remitente o texto…" value="${esc(state.search)}" data-change="search">
+        <button class="btn refresh-inbox" data-action="refresh-inbox" aria-label="Actualizar bandeja">${ICON.refresh}<span>Actualizar</span></button>
       </div>
       <div class="inbox ${state.message ? 'reading' : ''}">
         <div class="card mlist-wrap"><div class="mlist">${list || `<div class="empty"><h3>Sin correos todavía</h3><p>Cuando tu app envíe un correo a ${state.accountFilter ? esc(state.accountFilter) : 'una cuenta de este proyecto'}, aparecerá aquí (se actualiza solo cada 10 segundos).</p></div>`}</div></div>
@@ -521,6 +522,18 @@
         if (!state.message.seen) { await api('/api/messages/' + b.dataset.id, { method: 'PATCH', body: { seen: true } }); state.message.seen = true; }
         await refresh({ quiet: true });
       } catch (e) { toast(e.message, 'err'); }
+    },
+    async 'refresh-inbox'(b) {
+      const before = new Set(state.messages.map((m) => m.id));
+      b.disabled = true; b.setAttribute('aria-busy', 'true'); b.querySelector('span').textContent = 'Actualizando…';
+      try {
+        await refresh();
+        const nuevos = state.messages.filter((m) => !before.has(m.id)).length;
+        toast(nuevos ? `${nuevos} ${nuevos === 1 ? 'correo nuevo' : 'correos nuevos'}` : 'Bandeja al día: no hay correos nuevos', nuevos ? 'ok' : undefined);
+      } finally {
+        const nb = $('[data-action="refresh-inbox"]'); // refresh() redibuja: se restaura el botón nuevo o el mismo
+        if (nb) { nb.disabled = false; nb.removeAttribute('aria-busy'); nb.querySelector('span').textContent = 'Actualizar'; }
+      }
     },
     'close-message'() { state.message = null; renderMain(); },
     async 'mark-unseen'(b) { await api('/api/messages/' + b.dataset.id, { method: 'PATCH', body: { seen: false } }); state.message = null; await refresh(); toast('Marcado como no leído'); },
