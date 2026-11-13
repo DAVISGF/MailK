@@ -1,0 +1,47 @@
+# Stalwart Mail Server: correo REAL multi-dominio (SMTP, IMAP, POP3, JMAP, antispam, DKIM, ACME).
+# MailK (raíz del repo) es el servidor de PRUEBAS; esto es otra cosa.
+#
+# Uso en el VPS (ver setup-vps.sh y RUNBOOK.md):
+#   docker compose up -d
+#   docker logs stalwart 2>&1 | grep -A8 'bootstrap mode'   # credenciales temporales del admin
+#   ssh -L 8080:127.0.0.1:8080 root@<IP-del-VPS>              # asistente en http://127.0.0.1:8080/admin
+#
+# Probado con v1.1.0: tras el asistente, Stalwart abre 25, 465, 993, 995, 4190, 443 y 8080.
+# 587 (STARTTLS), 143 (IMAP sin TLS) y 110 (POP3 sin TLS) no se abren por defecto (ver RUNBOOK.md).
+services:
+  # Prepara una vez la carpeta de logs: la imagen no la trae y el usuario 'stalwart' (uid 2000) no podría escribir.
+  logs-init:
+    image: ghcr.io/stalwartlabs/stalwart:v1.1.0
+    user: root
+    entrypoint: ["sh", "-c", "chown stalwart:stalwart /var/log/stalwart"]
+    volumes:
+      - stalwart-logs:/var/log/stalwart
+    restart: "no"
+
+  stalwart:
+    image: ghcr.io/stalwartlabs/stalwart:v1.1.0   # versión fijada; actualizar según RUNBOOK.md
+    container_name: stalwart
+    init: true
+    restart: unless-stopped
+    depends_on:
+      logs-init:
+        condition: service_completed_successfully
+    ports:
+      - "25:25"      # SMTP entrante: otros servidores te entregan correo
+      - "465:465"    # SMTP de envío con TLS (clientes de correo)
+      - "993:993"    # IMAP con TLS
+      - "995:995"    # POP3 con TLS
+      - "4190:4190"  # ManageSieve (filtros y respuestas automáticas)
+      - "443:443"    # HTTPS: webadmin, webmail/JMAP, autoconfig, MTA-STS y certificado ACME (TLS-ALPN-01)
+      - "127.0.0.1:8080:8080"  # asistente/admin por HTTP, solo local (usar túnel SSH)
+    volumes:
+      - stalwart-etc:/etc/stalwart        # config.json (apunta al almacén de datos)
+      - stalwart-data:/var/lib/stalwart   # configuración, buzones, colas, claves DKIM, certificados
+      - stalwart-logs:/var/log/stalwart   # logs (ruta por defecto del asistente)
+    # environment:
+    #   STALWART_RECOVERY_ADMIN: "admin:<clave-fuerte>"  # solo para recuperar acceso; quitar después
+
+volumes:
+  stalwart-etc:
+  stalwart-data:
+  stalwart-logs:

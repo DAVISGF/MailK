@@ -29,7 +29,8 @@ const schema = z.object({
   MAILK_TLS_KEY: z.string().optional(),
   MAILK_AUTO_CREATE: bool,
   MAILK_DEFAULT_GROUP: z.string().default('default'),
-  MAILK_RELAY_URL: z.string().optional()
+  MAILK_RELAY_URL: z.string().optional(),
+  MAILK_PUBLIC_HOST: z.string().optional()
 });
 
 export interface Config {
@@ -44,6 +45,8 @@ export interface Config {
   autoCreate: boolean;
   defaultGroup: string;
   relayUrl?: string;
+  /** Host o IP públicos que las apps usan para conectarse (se muestra en la UI). */
+  publicHost?: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -77,6 +80,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     tls: e.MAILK_TLS_CERT && e.MAILK_TLS_KEY ? { cert: e.MAILK_TLS_CERT, key: e.MAILK_TLS_KEY } : undefined,
     autoCreate: e.MAILK_AUTO_CREATE ?? true,
     defaultGroup: e.MAILK_DEFAULT_GROUP,
-    relayUrl: e.MAILK_RELAY_URL
+    relayUrl: e.MAILK_RELAY_URL,
+    publicHost: e.MAILK_PUBLIC_HOST?.trim() || undefined
   };
 }

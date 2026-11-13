@@ -13,6 +13,7 @@ primary_region = "gru"
   MAILK_DEFAULT_GROUP = "default"
   MAILK_DB = "/data/mailk.db"
   MAILK_HTTP_PORT = "8025"
+  MAILK_PUBLIC_HOST = "149.248.217.64"   # IP dedicada; la UI la muestra en «Conectar tu app»
 
 [[mounts]]
   source = "mailk_data"
