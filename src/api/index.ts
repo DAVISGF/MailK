@@ -3,7 +3,17 @@ import { simpleParser } from 'mailparser';
 import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { Store } from '../store/index.js';
-import { PAGE } from '../web/page.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/** Archivos de la interfaz web (src/web/static en desarrollo, dist/web/static tras compilar). */
+const WEB_DIR = fileURLToPath(new URL('../web/static/', import.meta.url));
+const STATIC_FILES: Record<string, { file: string; type: string }> = {
+  '/': { file: 'index.html', type: 'text/html; charset=utf-8' },
+  '/app.css': { file: 'app.css', type: 'text/css; charset=utf-8' },
+  '/app.js': { file: 'app.js', type: 'text/javascript; charset=utf-8' },
+  '/favicon.svg': { file: 'favicon.svg', type: 'image/svg+xml' }
+};
 
 const nameRe = /^[\w.\-]{1,64}$/;
 const addrRe = /^[^\s@]+@[^\s@]+$/;
@@ -20,14 +30,21 @@ export function createApi(config: Config, store: Store): FastifyInstance {
     }
   });
 
-  app.get('/', async (_req, reply) => reply.type('text/html; charset=utf-8').send(PAGE));
+  for (const [route, { file, type }] of Object.entries(STATIC_FILES)) {
+    const body = readFileSync(WEB_DIR + file);
+    app.get(route, async (_req, reply) => reply.type(type).header('cache-control', 'no-cache').send(body));
+  }
   app.get('/health', async () => ({ ok: true }));
   app.get('/api/config', async () => ({
     auth: config.auth,
     autoCreate: config.autoCreate,
     defaultGroup: config.defaultGroup,
     ports: config.ports,
-    tls: !!config.tls
+    tls: !!config.tls,
+    publicHost: config.publicHost ?? null,
+    // Solo el usuario SMTP (nunca la clave): la UI lo muestra en «Conectar tu app».
+    smtpUser: config.auth ? config.smtpUser ?? null : null,
+    relay: !!config.relayUrl
   }));
 
   // ---- grupos ----
@@ -119,6 +136,14 @@ export function createApi(config: Config, store: Store): FastifyInstance {
       .type(a.contentType)
       .header('content-disposition', `attachment; filename="${a.filename ?? 'adjunto'}"`)
       .send(a.content);
+  });
+  app.patch<{ Params: { id: string } }>('/api/messages/:id', async (req, reply) => {
+    const b = z.object({ seen: z.boolean() }).safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: 'Datos inválidos' });
+    const id = Number(req.params.id);
+    if (!store.getMessage(id)) return reply.code(404).send({ error: 'No existe' });
+    store.setFlags(id, { seen: b.data.seen });
+    return store.getMessage(id);
   });
   app.delete<{ Params: { id: string } }>('/api/messages/:id', async (req, reply) =>
     store.deleteMessage(Number(req.params.id)) ? { deleted: true } : reply.code(404).send({ error: 'No existe' })

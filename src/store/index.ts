@@ -16,6 +16,10 @@ export interface Account {
   tags: string[];
   relayTo: string | null;
   createdAt: string;
+  /** Total de correos del buzón. */
+  messages: number;
+  /** Correos sin leer. */
+  unseen: number;
 }
 
 export interface MessageMeta {
@@ -104,15 +108,16 @@ export class Store {
     return r as Group | undefined;
   }
 
-  listGroups(): (Group & { accounts: number; messages: number })[] {
+  listGroups(): (Group & { accounts: number; messages: number; unseen: number })[] {
     return this.db
       .prepare(
         `SELECT g.id, g.name, g.created_at AS createdAt,
            (SELECT COUNT(*) FROM accounts a WHERE a.group_id = g.id) AS accounts,
-           (SELECT COUNT(*) FROM messages m JOIN accounts a ON a.id = m.account_id WHERE a.group_id = g.id) AS messages
+           (SELECT COUNT(*) FROM messages m JOIN accounts a ON a.id = m.account_id WHERE a.group_id = g.id) AS messages,
+           (SELECT COUNT(*) FROM messages m JOIN accounts a ON a.id = m.account_id WHERE a.group_id = g.id AND m.seen = 0) AS unseen
          FROM groups g ORDER BY g.name`
       )
-      .all() as (Group & { accounts: number; messages: number })[];
+      .all() as (Group & { accounts: number; messages: number; unseen: number })[];
   }
 
   deleteGroup(name: string): boolean {
@@ -128,11 +133,16 @@ export class Store {
       password: r.password,
       tags: splitTags(r.tags),
       relayTo: r.relay_to,
-      createdAt: r.created_at
+      createdAt: r.created_at,
+      messages: r.messageCount ?? 0,
+      unseen: r.unseenCount ?? 0
     };
   }
 
-  private static ACCOUNT_SQL = `SELECT a.*, g.name AS groupName FROM accounts a JOIN groups g ON g.id = a.group_id`;
+  private static ACCOUNT_SQL = `SELECT a.*, g.name AS groupName,
+      (SELECT COUNT(*) FROM messages m WHERE m.account_id = a.id) AS messageCount,
+      (SELECT COUNT(*) FROM messages m WHERE m.account_id = a.id AND m.seen = 0) AS unseenCount
+    FROM accounts a JOIN groups g ON g.id = a.group_id`;
 
   createAccount(input: {
     address: string;

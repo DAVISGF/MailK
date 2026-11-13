@@ -64,6 +64,7 @@ IMAP/POP3: usuario = dirección completa. En modo local cualquier clave sirve; c
 | `MAILK_*_PORT` | ver tabla | `SMTP`, `IMAP`, `POP3`, `HTTP`, `SMTPS`, `IMAPS`, `POP3S` |
 | `MAILK_TLS_CERT` / `MAILK_TLS_KEY` | – | Ruta o contenido PEM; activa los puertos TLS |
 | `MAILK_RELAY_URL` | – | Transporte nodemailer (`smtp://user:pass@host:587`); se usa con cuentas que tengan `relayTo` |
+| `MAILK_PUBLIC_HOST` | – | Host o IP que usan tus apps para conectarse; la UI lo muestra en «Conectar tu app» |
 
 ## Despliegue en la nube
 
