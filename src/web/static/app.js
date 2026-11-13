@@ -119,7 +119,8 @@
       state.groups = await api('/api/groups');
       await loadGroupData();
       // En la actualización automática solo se redibuja si algo cambió (no recarga el correo abierto).
-      const sig = JSON.stringify([state.groups, state.accounts, state.messages]);
+      // El correo abierto es parte de la firma: abrir otro correo (aunque ya esté leído) siempre redibuja.
+      const sig = JSON.stringify([state.groups, state.accounts, state.messages, state.message?.id ?? null]);
       if (quiet && sig === lastSignature) return;
       lastSignature = sig;
       renderSidebar(); renderMain();
